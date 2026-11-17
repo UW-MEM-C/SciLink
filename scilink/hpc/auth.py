@@ -137,7 +137,8 @@ class MFAAuth(AuthStrategy):
 
     def _load(self, path: str) -> Optional[paramiko.PKey]:
         try:
-            return paramiko.PKey.from_path(path, passphrase=self._key_passphrase)
+            # positional: paramiko 5 renamed the keyword ``passphrase`` to ``password``
+            return paramiko.PKey.from_path(path, self._key_passphrase)
         except (SSHException, OSError, TypeError, ValueError) as e:
             # encrypted without (or with the wrong) passphrase, unreadable, or
             # an unsupported type: skip it and try the next key
