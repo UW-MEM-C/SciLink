@@ -111,7 +111,9 @@ class HPCConnection:
             username=self.profile.username,
             timeout=30,
             banner_timeout=30,
-            auth_timeout=30,
+            # The login includes the time a person takes to approve a Duo
+            # push on their phone (Duo itself gives up after about 60 s).
+            auth_timeout=90,
         )
 
         # One login chain for every route: key and/or password, answering
