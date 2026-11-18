@@ -309,6 +309,15 @@ class HPCConnection:
     ) -> None:
         self.sftp.put(local, remote, callback=callback)
 
+    def upload_text(self, content: str, remote: str) -> None:
+        """Upload *content* as a remote text file with Unix (LF) line endings.
+
+        Inputs built on Windows arrive with CRLF, which sbatch rejects;
+        writing from an in-memory buffer skips the local text-mode round trip.
+        """
+        normalized = content.replace("\r\n", "\n")
+        self.sftp.putfo(io.BytesIO(normalized.encode("utf-8")), remote)
+
     def download(
         self,
         remote: str,
