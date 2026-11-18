@@ -19,7 +19,7 @@ from __future__ import annotations
 import posixpath
 import re
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .diagnosis import (
     CAT_CONVERGENCE,
@@ -341,9 +341,14 @@ def prepare_and_submit_retry(
     *,
     approved: bool,
     script_name: str = "submit.sh",
+    extra_files: Sequence[str] = (),
 ) -> Dict[str, Any]:
     """Create ``retry_N`` next to the failed run, write the corrected inputs
     there and submit. The failed run's files are only read.
+
+    ``extra_files`` are copied as-is when the failed run has them, alongside
+    KPOINTS and POTCAR: helper files the job script needs, e.g. a script that
+    builds POTCAR at run time and its spec.
 
     Raises:
         PermissionError: when ``approved`` is not True (no remote action is
@@ -407,8 +412,8 @@ def prepare_and_submit_retry(
     cmds = []
     if "POSCAR" not in replacements:
         cmds.append(f"cp {_q(posixpath.join(src, structure_src))} {_q(new_dir + '/POSCAR')}")
-    for f in _COPY_FILES:
-        if f in replacements:
+    for f in dict.fromkeys((*_COPY_FILES, *extra_files)):
+        if f in replacements or f in ("INCAR", "POSCAR", script_name):
             continue
         s = _q(posixpath.join(src, f))
         cmds.append(f"if [ -f {s} ]; then cp {s} {_q(new_dir + '/')}; fi")

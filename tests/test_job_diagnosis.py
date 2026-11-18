@@ -857,3 +857,19 @@ def test_retry_requires_approval_and_never_touches_the_failed_run():
     # A second retry never reuses retry_1.
     res2 = prepare_and_submit_retry(conn, sched, p, approved=True)
     assert res2["work_dir"] == f"{WD}/retry_2"
+
+
+def test_retry_copies_extra_helper_files_the_script_needs():
+    files = {"submit.sh": _wizard_script(), "INCAR": INCAR_RELAX, "POSCAR": POSCAR,
+             "CONTCAR": POSCAR, "KPOINTS": KPOINTS, "POTCAR": POTCAR_OK, "OUTCAR": OUTCAR_TRUNCATED,
+             "POTCAR.spec": "Ti_pv\nO\n", "prepare_pseudopotentials.sh": "cat spec > POTCAR\n"}
+    conn = FakeConn(files=files, sacct="7001|TIMEOUT|0:0|04:00:12||04:00:00|64G\n")
+    p = build_retry_proposal(_diag(conn), current_script=files["submit.sh"])
+    res = prepare_and_submit_retry(conn, FakeSched(), p, approved=True,
+                                   extra_files=("POTCAR.spec", "prepare_pseudopotentials.sh",
+                                                "config.json", "INCAR"))
+    new = res["work_dir"]
+    assert conn.files[f"{new}/POTCAR.spec"] == files["POTCAR.spec"]
+    assert conn.files[f"{new}/prepare_pseudopotentials.sh"] == files["prepare_pseudopotentials.sh"]
+    assert f"{new}/config.json" not in conn.files           # absent in the failed run: skipped
+    assert conn.files[f"{new}/INCAR"] != files["INCAR"] or not p.incar_changes  # INCAR is the corrected one
